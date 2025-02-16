@@ -5,6 +5,7 @@ const OTP = require("../models/OTP");
 const jwt = require("jsonwebtoken");
 const otpGenerator = require("otp-generator");
 const mailSender = require("../utils/mailSender");
+const Admin = require("../models/admin");
 require("dotenv").config();
 
 // Helper function to validate email format
@@ -110,7 +111,7 @@ exports.login = async (req, res) => {
     }
 
     // STEP 3: Find user
-    const user = await mentee.findOne({ email });
+    let user = await mentee.findOne({ email });
     // console.log(user);
     if (!user) {
       return res.status(401).json({
@@ -129,16 +130,28 @@ exports.login = async (req, res) => {
     }
 
     // STEP 5: Generate JWT token
+    const payload = { id: user._id, email: user.email, role: user.role }; 
+    //jwt.sign() takes 3 arguments: payload, secret, options
     const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
+      payload,
       process.env.JWT_SECRET,
       { expiresIn: "24h" }
     );
 
+    // console.log(typeof user);
+    user = user.toObject(); 
+    //i want to add a new field to the user object called token and assign it the value of the token variable
+    user.token = token;
+    // console.log(user);
+    user.password = undefined;
+    // console.log(user);
+
     // STEP 6: Set cookie and send response
+    //cookie is a small text file stored on the user's computer by the web browser
+    //cookie needs three parameters: name, data, options
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      // secure: process.env.NODE_ENV === "production",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
@@ -149,7 +162,8 @@ exports.login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        // role: user.role,
+        token: token
       },
       message: "Login successful",
     });
@@ -214,3 +228,79 @@ exports.sendOTP = async (req, res) => {
     });
   }
 };
+
+// ADMIN LOGIN CONTROLLER 
+exports.adminLogin = async (req, res) => {
+  try {
+      // 1️⃣ Extract email and password from request body
+      const { email, password, secretKey } = req.body;
+
+      // 2️⃣ Validate input fields
+      if (!email || !password || !secretKey) {
+          return res.status(400).json({
+              success: false,
+              message: "All fields are required",
+          });
+      }
+
+      // 3️⃣ Check if the admin exists in the database
+      let admin = await Admin.findOne({ email });
+      if (!admin) {
+          return res.status(401).json({
+              success: false,
+              message: "Admin not found",
+          });
+      }
+
+      // 4️⃣ Verify the password
+      const isPasswordValid = await bcrypt.compare(password, admin.password);
+      if (!isPasswordValid) {
+          return res.status(401).json({
+              success: false,
+              message: "Incorrect password",
+          });
+      }
+
+      // 5️⃣ Check if the secret key matches the one stored in .env
+      if (secretKey !== process.env.ADMIN_SECRET_KEY) {
+          return res.status(403).json({
+              success: false,
+              message: "Invalid secret key",
+          });
+      }
+
+      // 6️⃣ Generate a JWT token
+      const payload = { id: admin._id, email: admin.email, role: "admin" }; 
+      const token = jwt.sign(
+          payload,
+          process.env.JWT_SECRET,
+          { expiresIn: "24h" }
+      );
+      admin = admin.toObject();
+      admin.token = token;
+      admin.password = undefined;
+
+      // 7️⃣ Set the token in a cookie (HTTP-Only for security)
+      res.cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "Strict",
+      });
+
+      // 8️⃣ Send a success response with admin details
+      return res.status(200).json({
+          success: true,
+          message: "Admin login successful",
+          token,
+          admin,
+      });
+
+  } catch (error) {
+      return res.status(500).json({
+          success: false,
+          message: "Server error during admin login",
+          error: error.message,
+      });
+  }
+};
+
