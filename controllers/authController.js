@@ -110,7 +110,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // STEP 3: Find user
+    // STEP 3: Finnd user
     let user = await mentee.findOne({ email });
     // console.log(user);
     if (!user) {
@@ -304,3 +304,11 @@ exports.adminLogin = async (req, res) => {
   }
 };
 
+//Logout Controller
+exports.logout = async (req, res) => {
+  res.clearCookie("token");
+  return res.status(200).json({
+    success: true,
+    message: "Logout successful",
+  });
+};

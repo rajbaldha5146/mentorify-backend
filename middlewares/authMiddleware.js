@@ -123,3 +123,29 @@ exports.isAdmin = async (req, res, next) => {
         });
     }
 };
+
+exports.isMentor = async (req, res, next) => {
+    try {
+        // Steps 1 & 2: Find mentor by email
+        const userDetails = await Mentor.findOne({ email: req.user.email });
+
+        // Step 3: Check if mentor exists
+        if (!userDetails) {
+            return res.status(401).json({ 
+                success: false, 
+                message: "Access Denied: Not a Mentor" 
+            });
+        }
+
+        // Step 4: Allow access
+        next();
+    }
+    catch (error) {
+        // Step 5: Handle database errors
+        return res.status(500).json({ 
+            success: false, 
+            message: "Error Verifying Mentor Role" 
+        });
+    }
+}
+

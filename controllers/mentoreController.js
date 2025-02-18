@@ -127,7 +127,8 @@ exports.mentorLogin = async (req, res) => {
       }
   
       // STEP 5: Generate JWT token
-      const payload = { id: user._id, email: user.email, role: user.role }; 
+      const payload = { id: user._id, email: user.email}; 
+      // console.log(payload);
       //jwt.sign() takes 3 arguments: payload, secret, options
       const token = jwt.sign(
         payload,
