@@ -35,4 +35,32 @@ const mailSender = async (email, subject, body) => {
   }
 };
 
+
+const sendEmail = async (email, subject, message) => {
+  try {
+    let transporter = nodemailer.createTransport({
+      host: process.env.MAIL_HOST,
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+
+    let info = await transporter.sendMail({
+      from: "Mentorify",
+      to: email,
+      subject: subject,
+      html: `<p>${message}</p>`,
+    });
+
+    console.log("Email sent:", info.response);
+    return info;
+  } catch (error) {
+    console.error("Error sending email:", error);
+  }
+};
+
+module.exports = sendEmail;
+
+
 module.exports = mailSender;

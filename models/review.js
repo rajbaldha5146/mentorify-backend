@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const reviewSchema = new mongoose.Schema(
   {
+    sessionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Session",
+      required: true,
+      unique: true, // Ensures only one review per session
+    },
     menteeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Mentee",
@@ -18,7 +24,10 @@ const reviewSchema = new mongoose.Schema(
       min: [1, "Rating must be at least 1"],
       max: [5, "Rating must be at most 5"],
     },
-    comment: { type: String, required: true },
+    comment: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );

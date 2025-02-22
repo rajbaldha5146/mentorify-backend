@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const Mentee = require("../models/mentee");
+const Mentor = require("../models/mentor");
 const Admin = require("../models/admin");
 require("dotenv").config();
 

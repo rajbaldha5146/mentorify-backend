@@ -2,6 +2,14 @@ const OTP = require("../models/OTP");
 const Mentor = require("../models/mentor");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
 // Helper function to validate email format
 const isValidEmail = (email) => {
@@ -127,7 +135,7 @@ exports.mentorLogin = async (req, res) => {
       }
   
       // STEP 5: Generate JWT token
-      const payload = { id: user._id, email: user.email}; 
+      const payload = { id: user._id, email: user.email, role: user.role }; 
       // console.log(payload);
       //jwt.sign() takes 3 arguments: payload, secret, options
       const token = jwt.sign(
@@ -163,6 +171,7 @@ exports.mentorLogin = async (req, res) => {
           experience: user.experience,
           currentPosition: user.currentPosition,
           status: user.status,
+          role: user.role,
           token: token
         },
         message: "Login successful",
@@ -176,3 +185,88 @@ exports.mentorLogin = async (req, res) => {
       });
     }
   };
+
+// Upload profile picture
+exports.uploadProfilePicture = async (req, res) => {
+    try {
+        // Check if file exists in request
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: "Please upload an image"
+            });
+        }
+
+        const mentorId = req.user.id;
+
+        // Upload to Cloudinary
+        const result = await cloudinary.uploader.upload(req.file.path, {
+            folder: "mentor_profiles",
+            width: 300,
+            crop: "scale"
+        });
+
+        // Update mentor profile with new image URL
+        const updatedMentor = await Mentor.findByIdAndUpdate(
+            mentorId,
+            { profilePicture: result.secure_url },
+            { new: true }
+        ).select('-password');
+
+        return res.status(200).json({
+            success: true,
+            message: "Profile picture uploaded successfully",
+            data: {
+                profilePicture: result.secure_url,
+                mentor: updatedMentor
+            }
+        });
+
+    } catch (error) {
+        console.error("Error uploading profile picture:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error uploading profile picture",
+            error: error.message
+        });
+    }
+};
+
+// Get mentor profile image URL
+exports.getMentorImageUrl = async (req, res) => {
+    try {
+        const { mentorId } = req.body;
+
+        // Validate mentorId
+        if (!mentorId) {
+            return res.status(400).json({
+                success: false,
+                message: "Mentor ID is required"
+            });
+        }
+
+        // Find mentor by ID
+        const mentor = await Mentor.findById(mentorId);
+        
+        if (!mentor) {
+            return res.status(404).json({
+                success: false,
+                message: "Mentor not found"
+            });
+        }
+
+        // Return success response with image URL (even if null)
+        return res.status(200).json({
+            success: true,
+            imageUrl: mentor.profilePicture || null
+        });
+
+    } catch (error) {
+        console.error("Error fetching mentor image URL:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching mentor image URL",
+            error: error.message
+        });
+    }
+};

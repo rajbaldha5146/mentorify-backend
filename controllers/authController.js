@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const otpGenerator = require("otp-generator");
 const mailSender = require("../utils/mailSender");
 const Admin = require("../models/admin");
+const Mentor = require("../models/mentor");
 require("dotenv").config();
 
 // Helper function to validate email format
@@ -131,7 +132,6 @@ exports.login = async (req, res) => {
 
     // STEP 5: Generate JWT token
     const payload = { id: user._id, email: user.email, role: user.role }; 
-    //jwt.sign() takes 3 arguments: payload, secret, options
     const token = jwt.sign(
       payload,
       process.env.JWT_SECRET,
@@ -162,7 +162,7 @@ exports.login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        // role: user.role,
+        role: user.role,
         token: token
       },
       message: "Login successful",
@@ -310,5 +310,14 @@ exports.logout = async (req, res) => {
   return res.status(200).json({
     success: true,
     message: "Logout successful",
+  });
+};
+
+//get mentor which status is true
+exports.MentorData = async (req, res) => {
+  const mentor = await Mentor.find({ status: true });
+  return res.status(200).json({
+    success: true,
+    mentor,
   });
 };
