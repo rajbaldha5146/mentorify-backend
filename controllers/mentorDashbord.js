@@ -1,4 +1,4 @@
-const MentorAvailability = require("../models/MentorAvailability");
+const MentorAvailability = require("../models/mentorAvailability");
 const Session = require("../models/session");
 const mongoose = require('mongoose');
 const cron = require('node-cron');

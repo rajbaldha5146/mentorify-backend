@@ -1,4 +1,4 @@
-const MentorAvailability = require("../models/MentorAvailability");
+const MentorAvailability = require("../models/mentorAvailability");
 const Session = require("../models/session"); // Assuming you have a Session model
 const nodemailer = require("nodemailer");
 const Mentor = require("../models/mentor"); // Add this if not already imported
