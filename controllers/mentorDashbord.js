@@ -448,6 +448,7 @@ const manualUpdateCompletedSessions = async (req, res) => {
         const mentorId = req.user.id;
         const { sessionId } = req.body;
 
+        // Validate sessionId
         if (!sessionId) {
             return res.status(400).json({
                 success: false,
@@ -455,6 +456,7 @@ const manualUpdateCompletedSessions = async (req, res) => {
             });
         }
 
+        // Find the session and ensure it belongs to this mentor
         const session = await Session.findOne({
             _id: sessionId,
             mentorId: mentorId,
@@ -468,34 +470,53 @@ const manualUpdateCompletedSessions = async (req, res) => {
             });
         }
 
-        const now = new Date().toISOString();  // Always get UTC time
-        const sessionDate = new Date(session.date); 
-        sessionDate.setUTCHours(0, 0, 0, 0);  // Normalize to UTC
-
+        // Improved time comparison logic
+        const now = new Date();
+        const sessionDate = new Date(session.date);
         const [startTime, endTime] = session.timeSlot.split(' - ');
-        const [time, period] = endTime.split(' ');
-        const [hours, minutes] = time.split(':');
-
-        let sessionHours = parseInt(hours);
-        if (period.toUpperCase() === 'PM' && sessionHours !== 12) {
-            sessionHours += 12;
-        } else if (period.toUpperCase() === 'AM' && sessionHours === 12) {
-            sessionHours = 0;
+        
+        // Parse the end time with more robust logic
+        const [endTimeStr, period] = endTime.trim().split(' ');
+        const [hours, minutes] = endTimeStr.split(':');
+        
+        // Convert to 24-hour format
+        let endHour = parseInt(hours);
+        if (period.toUpperCase() === 'PM' && endHour !== 12) {
+            endHour += 12;
+        } else if (period.toUpperCase() === 'AM' && endHour === 12) {
+            endHour = 0;
         }
 
-        sessionDate.setUTCHours(sessionHours, parseInt(minutes), 0, 0); 
+        // Set session end time
+        const sessionEndTime = new Date(sessionDate);
+        sessionEndTime.setHours(endHour, parseInt(minutes), 0, 0);
 
-        if (new Date(now) < sessionDate) {
+        // Add a 5-minute buffer to allow slightly early completion
+        const bufferTime = new Date(sessionEndTime);
+        bufferTime.setMinutes(bufferTime.getMinutes() - 5);
+
+        // Get timezone offset in minutes
+        const timezoneOffset = now.getTimezoneOffset();
+        
+        // Adjust current time for timezone
+        const adjustedNow = new Date(now.getTime() - (timezoneOffset * 60000));
+        
+        // Compare times with buffer and timezone adjustment
+        if (adjustedNow < bufferTime) {
             return res.status(400).json({
                 success: false,
-                message: "Cannot mark session as completed before it ends",
-                sessionEndTime: sessionDate
+                message: "Session cannot be marked as completed until 5 minutes before end time",
+                sessionEndTime: sessionEndTime,
+                currentTime: adjustedNow,
+                timeRemaining: Math.floor((bufferTime - adjustedNow) / 60000) + " minutes"
             });
         }
 
+        // Update session status to completed
         session.status = 'completed';
         await session.save();
 
+        // Find mentor's availability to unmark the slot
         const mentorAvailability = await MentorAvailability.findOne({ mentorId });
         if (mentorAvailability) {
             const daySlot = mentorAvailability.slotsPerDay.find(d => d.day === session.day);
@@ -510,6 +531,7 @@ const manualUpdateCompletedSessions = async (req, res) => {
             }
         }
 
+        // Send success response with detailed information
         return res.status(200).json({
             success: true,
             message: "Session marked as completed successfully",
@@ -524,7 +546,8 @@ const manualUpdateCompletedSessions = async (req, res) => {
                 date: session.date,
                 timeSlot: session.timeSlot,
                 status: session.status,
-                completedAt: session.updatedAt
+                completedAt: now,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
             }
         });
 
@@ -537,7 +560,6 @@ const manualUpdateCompletedSessions = async (req, res) => {
         });
     }
 };
-
 
 // Get upcoming accepted sessions for a mentor
 const getUpcomingAcceptedSessions = async (req, res) => {
