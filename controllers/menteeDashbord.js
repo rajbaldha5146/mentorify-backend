@@ -66,31 +66,126 @@ const bookMentorSession = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid time slot" });
         }
 
-        // Check if the slot is already booked for this date
-        if (requestedSlot.bookedDates.includes(date)) {
-            return res.status(400).json({ success: false, message: "This time slot is already booked for the selected date" });
+        // Check if the slot is already booked for this specific date only
+        const existingSession = await Session.findOne({
+            mentorId,
+            date,
+            timeSlot,
+            status: { $in: ['pending', 'confirmed'] } // Check only active sessions
+        });
+
+        if (existingSession) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "This time slot is already booked for the selected date" 
+            });
         }
 
         // Create new session
         const session = await Session.create({
-            mentorId,
             menteeId,
+            mentorId,
             day,
-            date: sessionDate,
+            date,
             timeSlot,
-            message: message || "",
-            status: "pending"
+            message
+        });
+
+        // Create email transporter
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.NODEMAILER_USER,
+                pass: process.env.NODEMAILER_PASS,
+            },
+        });
+
+        // Format date for email
+        const formattedDate = new Date(date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Get mentee and mentor details for the email
+        const mentee = await Mentee.findById(menteeId);
+        const mentor = await Mentor.findById(mentorId);
+
+        // Send email to mentee
+        await transporter.sendMail({
+            from: `"Mentorify" <${process.env.NODEMAILER_USER}>`,
+            to: mentee.email,
+            subject: "Session Request Confirmation",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #2c3e50;">Session Request Submitted!</h2>
+                    <p>Hello ${mentee.name},</p>
+                    <p>Your mentoring session request has been submitted successfully. Here are the details:</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p><strong>Mentor:</strong> ${mentor.name}</p>
+                        <p><strong>Date:</strong> ${formattedDate}</p>
+                        <p><strong>Time Slot:</strong> ${timeSlot}</p>
+                        ${message ? `<p><strong>Your Message:</strong> ${message}</p>` : ''}
+                    </div>
+
+                    <p>Please note that this session is pending confirmation from the mentor. 
+                    You will receive another email once the mentor confirms the session.</p>
+                    
+                    <div style="margin-top: 20px; color: #666;">
+                        <p>Best regards,</p>
+                        <p>The Mentorify Team</p>
+                    </div>
+                </div>
+            `
+        });
+
+        // Send email to mentor
+        await transporter.sendMail({
+            from: `"Mentorify" <${process.env.NODEMAILER_USER}>`,
+            to: mentor.email,
+            subject: "New Session Request",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #2c3e50;">New Session Request!</h2>
+                    <p>Hello ${mentor.name},</p>
+                    <p>You have received a new mentoring session request with the following details:</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p><strong>Mentee:</strong> ${mentee.name}</p>
+                        <p><strong>Date:</strong> ${formattedDate}</p>
+                        <p><strong>Time Slot:</strong> ${timeSlot}</p>
+                        ${message ? `<p><strong>Mentee's Message:</strong> ${message}</p>` : ''}
+                    </div>
+
+                    <p>Please log in to your dashboard to accept or decline this request.</p>
+                    
+                    <div style="margin-top: 20px; color: #666;">
+                        <p>Best regards,</p>
+                        <p>The Mentorify Team</p>
+                    </div>
+                </div>
+            `
         });
 
         // Mark this slot as booked for this specific date
         requestedSlot.bookedDates.push(date);
         await mentorAvailability.save();
 
-        return res.status(201).json({ success: true, message: "Session booked successfully", session });
+        return res.status(201).json({
+            success: true,
+            message: "Session booked successfully and notifications sent",
+            session: session
+        });
 
     } catch (error) {
         console.error("Error booking session:", error);
-        return res.status(500).json({ success: false, message: "Error booking session", error: error.message });
+        return res.status(500).json({
+            success: false,
+            message: "Error booking session",
+            error: error.message
+        });
     }
 };
 
