@@ -12,11 +12,13 @@ const app = express();
 
 // Connect to MongoDB
 connectDB();
+const FRONTEND_URL=" http://localhost:3000"
+
 
 // Middleware
 app.use(express.json());
 app.use(cors({
-  origin: process.env.FRONTEND_URL?.split(",") || ["http://localhost:3000"],
+    origin: FRONTEND_URL?.split(",") || ["http://localhost:3000"],
   credentials: true
 }));
 
