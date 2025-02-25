@@ -12,7 +12,7 @@ const app = express();
 
 // Connect to MongoDB
 connectDB();
-const FRONTEND_URL=" http://localhost:3000"
+const FRONTEND_URL="https://mentorify-frontend-fmsq6ph04-rajbaldha5146s-projects.vercel.app"
 
 
 // Middleware
