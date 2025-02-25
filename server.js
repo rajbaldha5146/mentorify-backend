@@ -21,7 +21,7 @@ connectDB();
 const allowedOrigins = [
   'http://localhost:3000', 
   'https://mentorify-frontend-beta.vercel.app',
-  'https://mentorify-admin.vercel.app/'
+  'https://mentorify-admin.vercel.app'
 ];
 
 // CORS Configuration
