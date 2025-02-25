@@ -34,6 +34,14 @@ const sessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Review",
       default: null
+    },
+    meetingLink: {
+      type: String,
+      default: null
+    },
+    meetingLinkSent: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }

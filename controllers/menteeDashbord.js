@@ -10,6 +10,19 @@ const bookMentorSession = async (req, res) => {
         const { mentorId, day, date, timeSlot, message } = req.body;
         const menteeId = req.user.id;
 
+        // Add check for existing confirmed session
+        const existingConfirmedSession = await Session.findOne({
+            menteeId,
+            status: 'confirmed'
+        });
+
+        if (existingConfirmedSession) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Please complete your existing confirmed session before booking a new one" 
+            });
+        }
+
         if (!mentorId || !day || !date || !timeSlot) {
             return res.status(400).json({ success: false, message: "Missing required fields" });
         }
@@ -298,11 +311,61 @@ const getMentorAvailability = async (req, res) => {
     }
 };
 
+// Get meeting link for a specific session
+const getMeetingLink = async (req, res) => {
+    try {
+        const menteeId = req.user.id;
+        const { sessionId } = req.params;
+
+        // Find the session and ensure it belongs to this mentee
+        const session = await Session.findOne({
+            _id: sessionId,
+            menteeId: menteeId,
+            status: 'confirmed'
+        });
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: "Confirmed session not found"
+            });
+        }
+
+        // Check if meeting link exists
+        if (!session.meetingLink) {
+            return res.status(404).json({
+                success: false,
+                message: "Meeting link has not been added yet"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Meeting link retrieved successfully",
+            data: {
+                sessionId: session._id,
+                meetingLink: session.meetingLink,
+                timeSlot: session.timeSlot,
+                date: session.date,
+                day: session.day
+            }
+        });
+
+    } catch (error) {
+        console.error("Error fetching meeting link:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching meeting link",
+            error: error.message
+        });
+    }
+};
 
 module.exports = {
     bookMentorSession,
     getUpcomingSessions,
     getCompletedSessions,
     getCancelledSessions,
-    getMentorAvailability
+    getMentorAvailability,
+    getMeetingLink,
 };

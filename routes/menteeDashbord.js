@@ -5,7 +5,8 @@ const {
     getUpcomingSessions,
     getCompletedSessions,
     getCancelledSessions,
-    getMentorAvailability
+    getMentorAvailability,
+    getMeetingLink
 } = require("../controllers/menteeDashbord");
 const { auth, isMentee } = require("../middlewares/authMiddleware");
 
@@ -23,5 +24,8 @@ router.get("/cancelled-sessions", auth, isMentee, getCancelledSessions);
 
 //for mentor availability
 router.get("/mentor-availability/:mentorId", auth, isMentee, getMentorAvailability);
+
+// Route to get meeting link for a specific session
+router.get("/meeting-link/:sessionId", auth, getMeetingLink);
 
 module.exports = router;

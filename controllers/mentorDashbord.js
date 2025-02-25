@@ -979,6 +979,117 @@ const getMentorImageUrl = async (req, res) => {
     }
 };
 
+// Add meeting link to confirmed session
+const addMeetingLink = async (req, res) => {
+    try {
+        const mentorId = req.user.id;
+        const { sessionId, meetingLink } = req.body;
+
+        // Input validation
+        if (!sessionId || !meetingLink) {
+            return res.status(400).json({
+                success: false,
+                message: "Session ID and meeting link are required"
+            });
+        }
+
+        // Validate meeting link format (should be a Google Meet link)
+        if (!meetingLink.startsWith('https://meet.google.com/')) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide a valid Google Meet link"
+            });
+        }
+
+        // Find the session and ensure it belongs to this mentor
+        const session = await Session.findOne({
+            _id: sessionId,
+            mentorId: mentorId,
+            status: 'confirmed'
+        }).populate('menteeId mentorId');
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: "Confirmed session not found"
+            });
+        }
+
+        // Update session with meeting link
+        session.meetingLink = meetingLink;
+        session.meetingLinkSent = true;
+        await session.save();
+
+        // Create email transporter
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: process.env.NODEMAILER_USER,
+                pass: process.env.NODEMAILER_PASS,
+            },
+        });
+
+        // Format date for email
+        const formattedDate = new Date(session.date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Send meeting link email to mentee
+        await transporter.sendMail({
+            from: `"Mentorify" <${process.env.NODEMAILER_USER}>`,
+            to: session.menteeId.email,
+            subject: "Meeting Link for Your Mentoring Session",
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #2c3e50;">Meeting Link Added!</h2>
+                    <p>Hello ${session.menteeId.name},</p>
+                    <p>Your mentor has added the meeting link for your upcoming session:</p>
+                    
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                        <p><strong>Mentor:</strong> ${session.mentorId.name}</p>
+                        <p><strong>Date:</strong> ${formattedDate}</p>
+                        <p><strong>Time Slot:</strong> ${session.timeSlot}</p>
+                        <p><strong>Meeting Link:</strong> <a href="${meetingLink}">${meetingLink}</a></p>
+                    </div>
+
+                    <p>Please join the meeting on time using the link above.</p>
+                    
+                    <div style="margin-top: 20px; color: #666;">
+                        <p>Best regards,</p>
+                        <p>The Mentorify Team</p>
+                    </div>
+                </div>
+            `
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Meeting link added and sent to mentee successfully",
+            session: {
+                sessionId: session._id,
+                meetingLink: session.meetingLink,
+                mentee: {
+                    name: session.menteeId.name,
+                    email: session.menteeId.email
+                },
+                date: formattedDate,
+                timeSlot: session.timeSlot
+            }
+        });
+
+    } catch (error) {
+        console.error("Error adding meeting link:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error adding meeting link",
+            error: error.message
+        });
+    }
+};
+
 module.exports = {
     setMentorAvailability,
     getMentorAvailability,
@@ -993,5 +1104,6 @@ module.exports = {
     getMentorDetails,
     updateMentorProfile,
     uploadProfilePicture,
-    getMentorImageUrl
+    getMentorImageUrl,
+    addMeetingLink
 };

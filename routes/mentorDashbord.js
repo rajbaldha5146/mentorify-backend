@@ -14,7 +14,8 @@ const {
     updateMentorProfile,
     getMentorDetails,
     uploadProfilePicture,
-    getMentorImageUrl
+    getMentorImageUrl,
+    addMeetingLink
 } = require("../controllers/mentorDashbord");
 const { auth, isMentor } = require("../middlewares/authMiddleware");
 const upload = require("../middlewares/multer");
@@ -66,5 +67,8 @@ router.post(
 
 // Route to get mentor image URL
 router.get("/mentor-image-url", auth, isMentor, getMentorImageUrl);
+
+// Route to add meeting link to confirmed session
+router.post("/add-meeting-link", auth, isMentor, addMeetingLink);
 
 module.exports = router;
