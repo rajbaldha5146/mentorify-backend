@@ -448,7 +448,6 @@ const manualUpdateCompletedSessions = async (req, res) => {
         const mentorId = req.user.id;
         const { sessionId } = req.body;
 
-        // Validate sessionId
         if (!sessionId) {
             return res.status(400).json({
                 success: false,
@@ -456,7 +455,6 @@ const manualUpdateCompletedSessions = async (req, res) => {
             });
         }
 
-        // Find the session and ensure it belongs to this mentor
         const session = await Session.findOne({
             _id: sessionId,
             mentorId: mentorId,
@@ -470,27 +468,24 @@ const manualUpdateCompletedSessions = async (req, res) => {
             });
         }
 
-        // Check if the session date and time has passed
-        const now = new Date();
-        const sessionDate = new Date(session.date);
+        const now = new Date().toISOString();  // Always get UTC time
+        const sessionDate = new Date(session.date); 
+        sessionDate.setUTCHours(0, 0, 0, 0);  // Normalize to UTC
+
         const [startTime, endTime] = session.timeSlot.split(' - ');
-        
-        // Parse the end time
         const [time, period] = endTime.split(' ');
         const [hours, minutes] = time.split(':');
-        
-        // Convert to 24-hour format and set session end time
+
         let sessionHours = parseInt(hours);
         if (period.toUpperCase() === 'PM' && sessionHours !== 12) {
             sessionHours += 12;
         } else if (period.toUpperCase() === 'AM' && sessionHours === 12) {
             sessionHours = 0;
         }
-        
-        sessionDate.setHours(sessionHours, parseInt(minutes), 0, 0);
 
-        // Check if current time is after session end time
-        if (now < sessionDate) {
+        sessionDate.setUTCHours(sessionHours, parseInt(minutes), 0, 0); 
+
+        if (new Date(now) < sessionDate) {
             return res.status(400).json({
                 success: false,
                 message: "Cannot mark session as completed before it ends",
@@ -498,11 +493,9 @@ const manualUpdateCompletedSessions = async (req, res) => {
             });
         }
 
-        // Update session status to completed
         session.status = 'completed';
         await session.save();
 
-        // Find mentor's availability to unmark the slot
         const mentorAvailability = await MentorAvailability.findOne({ mentorId });
         if (mentorAvailability) {
             const daySlot = mentorAvailability.slotsPerDay.find(d => d.day === session.day);
@@ -544,6 +537,7 @@ const manualUpdateCompletedSessions = async (req, res) => {
         });
     }
 };
+
 
 // Get upcoming accepted sessions for a mentor
 const getUpcomingAcceptedSessions = async (req, res) => {
