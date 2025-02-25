@@ -192,7 +192,7 @@ exports.sendOTP = async (req, res) => {
     }
 
     // STEP 3: Check existing user
-    const existingUser = await mentee.findOne({ email });
+    const existingUser = false;
     if (existingUser) {
       return res.status(409).json({
         success: false,
