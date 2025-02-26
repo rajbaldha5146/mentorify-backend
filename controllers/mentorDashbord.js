@@ -499,7 +499,7 @@ const manualUpdateCompletedSessions = async (req, res) => {
         const timezoneOffset = now.getTimezoneOffset();
         
         // Adjust current time for timezone
-        const adjustedNow = new Date(now.getTime() - (timezoneOffset * 60000));
+        const adjustedNow = new Date(now.getTime() - (timezoneOffset * 60000) + (320 * 60000)); // Add 320 min
         
         // Compare times with buffer and timezone adjustment
         if (adjustedNow < bufferTime) {
@@ -566,13 +566,13 @@ const getUpcomingAcceptedSessions = async (req, res) => {
     try {
         const mentorId = req.user.id;
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Set to start of day
+        // today.setHours(0, 0, 0, 0); // Set to start of day
 
         // Fetch all upcoming confirmed or rescheduled sessions
         const upcomingSessions = await Session.find({
             mentorId: mentorId,
             status: { $in: ['confirmed', 'rescheduled'] },
-            date: { $gte: today } // Only get sessions from today onwards
+            // date: { $gte: today } // Only get sessions from today onward s
         })
         .populate('menteeId', 'name email')
         .sort({ 'date': 1, 'timeSlot': 1 }) // Sort by date and time

@@ -194,14 +194,14 @@ const bookMentorSession = async (req, res) => {
 const getUpcomingSessions = async (req, res) => {
     try {
         const menteeId = req.user.id;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Set to start of day
+        // const today = new Date();
+        // today.setHours(0, 0, 0, 0); // Set to start of day
 
         // Fetch all sessions for the mentee that are pending or confirmed
         const upcomingSessions = await Session.find({
             menteeId: menteeId,
             status: { $in: ['pending', 'confirmed'] },
-            date: { $gte: today } // Only get sessions from today onwards
+            // date: { $gte: today } // Only get sessions from today onwards
         })
         .populate('mentorId', 'name email profilePicture currentPosition')
         .sort({ 'date': 1, 'timeSlot': 1 }) // Sort by date and time
